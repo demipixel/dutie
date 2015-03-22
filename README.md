@@ -7,6 +7,11 @@ npm install dutie // Some day, but this doesn't actually work yet
 ```
 
 # Task Manager
+
+NOT BEFORE YOU START USING THIS:
+
+ALL PARAMATERS MUST BE OBJECTS. IF IT IS A NUMBER, DO SOMETHING LIKE { num: 2 } TO CONTAIN 2. I apologize for the inconvenience. If you know of another way for Arrays to contain pointers for primitives, please notify me :)
+
 ```js
 var Dutie = require('dutie');
 ```
@@ -37,7 +42,9 @@ It will then decide what task is next.
 Will pass "true" to the cancel paramater in the finish method.
 
 ### Dutie.cancel()
-Calls Dutie.finish() so you guys don't confuse yourselves.
+Calls the Task.finish(true), then adds it back to the list.
+WARNING: This will leave currentTask as null unless you do something about it!
+You're probably not gonna use this one since we take care of priority canceling.
 
 ### Dutie.endTask()
 Murder the current task. Guillotine it and don't call its finish. Still replaces itself.
@@ -54,7 +61,7 @@ var Task = Dutie.Task
 ```
 ### Task.depend
 An array of Tasks it depends on to finish. Tasks will be removed from the list if they have finished/failed/ended
-The Task cannot be active and run until this array is empty.
+The Task cannot execute until this array is empty.
 
 ### TaskA.dependOn(TaskB)
 Will push TaskB to TaskA.depend
@@ -77,9 +84,9 @@ Same as Task.updateParams but for finish. Remember that important note in Task.f
 Silly goose.
 
 ### Task.check
-Method that is run to check if you can run the task.
+Method that is run to check if you can execute the task.
 This is if you want to depend on something that is not a task.
-If you want to be able to run the task, return true.
+If you want to be able to execute the task, return true.
 
 ### Task.checkParams
 What do you think. It's Task.finishParams for check.
@@ -91,12 +98,18 @@ Silly. Goose.
 ### new Task(update, updateParam, options)
 Congrats! You've created your new Task object! But what do you put in it?
 
-#### Update
+#### update
 This is your update method! Put in here what you'd like to do during your task. Once your task is complete, return true!
 
 #### updateParam
 Your update is going to be called with these paramaters, just for you. Make them count!
 Just in case you're wondering: this is an array.
+
+#### priority
+Explained in other places. Prioritises which task should be executed first.
+
+#### actPriority
+Also explained it other places. How much priority it has while executing.
 
 #### Options
 Alright, you've made it this far. What are the options?
@@ -109,7 +122,7 @@ Think of this as "how important is it that the task starts".
 
 ##### actPriority
 Default is 0.
-Short for "active priority". This is normally higher than priority, as it is how much priority it has while it is running.
+Short for "active priority". This is normally higher than priority, as it is how much priority the task has when executing.
 Remember, anything with a higher priority could cancel this, so sets this high if you shouldn't / can't stop it.
 Think of this as "how important is it that the task finishes now"
 
@@ -134,21 +147,23 @@ Let's say you have a Minecraft bot that needs to mine ore and then go home but t
 var Dutie = require('dutie');
 var Task = Dutie.Task;
 
-var mine = new Task(mineOreFunction, [], { priority: 3, actPriority: 6 finish: function(bot) {
-	if (bot.inventory.iron.count >= 10) return true;
-	return false;
+var Manager = new Dutie();
+
+var mine = new Task(mineOreFunction, [], { priority: 3, actPriority: 6, finish: function(bot) {
+	bot.stopMining();
+	bot.navigate.stop();
 }, finishParam: [bot]}); // Mine ore task
 var home = new Task(goHomeFunction, [true], { priority: 4, actPriority: 8}); // Go home task, passing "true" paramater as an example
 home.dependOn(mine); // Bot cannot go home until it finishes mining (or mining fails / ends)
 
-Dutie.add(mine).add(home);
+Manager.add(mine).add(home);
 
 /////////////// / / /
 /// Somewhere else
 /////////////// / / /
 
 var zombie = new Task(killZombieFunction, [], { priority: 20, actPriority: 20});
-Dutie.add(zombie); // Will now cancel the mine task, adding it back into the line, and make zombie the current (since it has a higher priority then mine's actPriority)
+Manager.add(zombie); // Will now cancel the mine task, adding it back into the line, and make zombie the current (since it has a higher priority then mine's actPriority)
 
 /////////////// / / /  /   /   /
 /// Somewhere else... again...
@@ -162,9 +177,9 @@ var sleep = new Task(goToSleep, ['home'], { priority: 3, actPriority: 3, check: 
 	if (bot.position.atHome()) return true;
 	return false;
 }, checkParams: [bot]});
-Dutie.add(sleep);
+Manager.add(sleep);
 
-Dutie.checkAll(); // This is automatically called at the end of a task, at a cancel, etc, but feel free to call it yourself if you need to
+Manager.checkAll(); // This is automatically called at the end of a task, at a cancel, etc, but feel free to call it yourself if you need to
 // Returns false because not at home.
 
 // Even if it does return true, it needs to have a higher priority than actPriority to overtake

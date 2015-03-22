@@ -1,0 +1,26 @@
+{
+  "name": "dutie",
+  "version": "1.0.0",
+  "description": "Create scheduling task managers to perform tasks with prerequisites and priorities",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/demipixel/dutie.git"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "bugs": {
+    "url": "https://github.com/demipixel/dutie/issues"
+  },
+  "homepage": "https://github.com/demipixel/dutie",
+  "keywords": [
+    "dutie",
+    "priority",
+    "schedule",
+    "manager",
+    "task"
+  ],
+  "author": "Lucas Simon <luke5227@gmail.com>"
+}
