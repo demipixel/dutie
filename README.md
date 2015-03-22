@@ -7,7 +7,7 @@ npm install dutie // Some day, but this doesn't actually work yet
 ```
 
 # Task Manager
-```
+```js
 var Dutie = require('dutie');
 ```
 ## Variables
@@ -49,7 +49,7 @@ Every task is checked when deciding the next Task, so don't worry about it if yo
 
 
 # Tasks
-```
+```js
 var Task = Dutie.Task
 ```
 ### Task.depend
@@ -73,7 +73,7 @@ When a task finishes (if you weren't silly enough to use Dutie.endTask()) this m
 [a, b, c] in your finishParams, it will call Task.finish(cancel, a, b, c). Thank you for your time :)
 
 ### Task.finishParams
-Same as Task.updateParams but for finish. Remember that important note in Task.finish
+Same as Task.updateParams but for finish. Remember that important note in Task.finish.
 Silly goose.
 
 ### Task.check
@@ -130,7 +130,10 @@ You've got to be joking.
 
 ##### EXAMPLE TIME
 Let's say you have a Minecraft bot that needs to mine ore and then go home but then runs into a zombie!
-```
+```js
+var Dutie = require('dutie');
+var Task = Dutie.Task;
+
 var mine = new Task(mineOreFunction, [], { priority: 3, actPriority: 6 finish: function(bot) {
 	if (bot.inventory.iron.count >= 10) return true;
 	return false;
