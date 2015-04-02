@@ -7,6 +7,8 @@ function Dutie() {
 	this.tasks = Array();
 	this.currentTask = null;
 	
+	this.activeCallback;
+	
 	this.init = function() {
 		this.update();
 	}
@@ -19,10 +21,15 @@ function Dutie() {
 		} else this.checkAll();
 	}
 	
-	this.add = function(Task) {
-		this.tasks.push(Task);
+	this.add = function(task) {
+		this.tasks.push(task);
+		task.added = true;
 		this.checkAll();
 		return this;
+	}
+	
+	this.addAll = function(task) {
+		task.addAllTo(this);
 	}
 	
 	this.sortTasks = function() {
@@ -53,6 +60,7 @@ function Dutie() {
 	this.finish = function() {
 		var param = [false].concat(this.currentTask.finishParams);
 		if (this.currentTask.finish) this.currentTask.finish.apply(this, param);
+		if (this.currentTask.complete) this.currentTask.complete.apply(this, this.currentTask.completeParams);
 		if (!this.currentTask) return;
 		this.currentTask.completed = true;
 		this.nextTask();
@@ -61,6 +69,7 @@ function Dutie() {
 	this.cancel = function() {
 		var param = [true].concat(this.currentTask.finishParams);
 		if (this.currentTask.finish) this.currentTask.finish.apply(this, param);
+		if (this.currentTask.cancel) this.currentTask.cancel.apply(this, this.currentTask.cancelParams);
 		if (!this.currentTask) return;
 		this.tasks.push(this.currentTask);
 		this.currentTask = null;
@@ -99,12 +108,21 @@ function Dutie() {
 
 Dutie.Task = function(update, updateParam, options, cb) {
 	this.depend = Array();
+	this.dependers = Array();
 	this.completed = false;
 	this.cb = cb || false;
 	this.parent = null;
+	this.added = false;
 	
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
+		tsk.dependers.push(this);
+		return this;
+	}
+	
+	this.dependBy = function(tsk) {
+		this.dependers.push(tsk);
+		tsk.depend.push(this);
 		return this;
 	}
 	
@@ -119,9 +137,14 @@ Dutie.Task = function(update, updateParam, options, cb) {
 	this.finishParams;
 	this.check;
 	this.checkParams;
+	this.cancel;
+	this.cancelParams;
+	this.complete;
+	this.completeParams;
 	
 	this.init = function(up, upParam, opt) {
 		if (!up) throw Error('You need an update function to create a task');
+		opt = opt || {};
 		
 		this.update = up;
 		this.updateParams = upParam || Array();
@@ -132,6 +155,10 @@ Dutie.Task = function(update, updateParam, options, cb) {
 		this.finishParams = opt.finishParams || Array();
 		this.check = opt.check || null;
 		this.checkParams = opt.checkParams || Array();
+		this.cancel = opt.cancel || null;
+		this.cancelParams = opt.cancelParams || Array();
+		this.complete = opt.cancel || null;
+		this.completeParams = opt.cancelParams || Array();
 		
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
@@ -146,6 +173,22 @@ Dutie.Task = function(update, updateParam, options, cb) {
 			}
 		}
 	}
+	
+	this.addTo = function(manager) {
+		manager.add(this);
+	}
+	
+	this.addAllTo = function(manager) {
+		this.addTo(manager);
+		
+		for (var i = 0; i < this.depend.length; i++) {
+			if (!this.depend[i].added) this.depend[i].addAllTo(manager);
+		}
+		
+		for (var i = 0; i < this.dependers.length; i++) {
+			if (!this.dependers[i].added) this.dependers[i].addAllTo(manager);
+		}
+	}
 }
 
 Dutie.CallTask = function(start, startParam, options, cb) {
@@ -153,6 +196,7 @@ Dutie.CallTask = function(start, startParam, options, cb) {
 	this.completed = false;
 	this.cb = cb || false;
 	this.parent = null;
+	this.added = false;
 	
 	var self = this;
 	
@@ -161,16 +205,23 @@ Dutie.CallTask = function(start, startParam, options, cb) {
 		return this;
 	}
 	
+	this.dependBy = function(tsk) {
+		this.dependers.push(tsk);
+		tsk.depend.push(this);
+		return this;
+	}
+	
 	this.priority = 0;
 	this.actPriority = 0;
 	
 	this.start = function(ar) {
-		this.eraseCallback();
-		this.startFunc.apply(this.startFunc, this.startParams.concat(this.currentCallback));
-	}
-	
-	this.eraseCallback = function() {
-		//this.currentCallback.functionBody = '';
+		this.parent.activeCallback = this.callback;
+		
+		var params = this.startParams;
+		if (this.location != -1) params[this.location] = this.callback;
+		else params = params.concat(this.callback);
+		
+		this.startFunc.apply(this.startFunc, params);
 	}
 	
 	this.finish = function(cancel) {
@@ -180,11 +231,10 @@ Dutie.CallTask = function(start, startParam, options, cb) {
 	}
 	
 	this.callback = function() {
-		//this.finishFunc.apply(this.finishFunc, [false].concat(arguments));
-		//self.finishParams = Object.keys(arguments).map(function(value, index) {return arguments[index]});
-		console.log(arguments);
-		self.finishParams = Array.prototype.slice.call(arguments);
-		self.parent.finish();
+		if (self.callback == self.parent.activeCallback) {
+			self.finishParams = Array.prototype.slice.call(arguments);
+			self.parent.finish();
+		}
 	}
 	
 	this.startFunc;
@@ -195,11 +245,15 @@ Dutie.CallTask = function(start, startParam, options, cb) {
 	this.finishParams; // Set by callback
 	this.check;
 	this.checkParams;
-	
-	this.currentCallback;
+	this.cancel;
+	this.cancelParams;
+	this.complete;
+	this.completeParams;
+	this.location;
 	
 	this.init = function(st, stParam, opt) {
 		if (!st) throw Error('You need an update function to create a task');
+		opt = opt || {};
 		
 		this.startFunc = st;
 		this.startParams = startParam || Array();
@@ -209,11 +263,15 @@ Dutie.CallTask = function(start, startParam, options, cb) {
 		this.finishFunc = opt.finish || null;
 		this.check = opt.check || null;
 		this.checkParams = opt.checkParams || Array();
+		this.cancel = opt.cancel || null;
+		this.cancelParams = opt.cancelParams || Array();
+		this.complete = opt.cancel || null;
+		this.completeParams = opt.cancelParams || Array();
+		
+		this.location = opt.location || -1;
 		
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
-		
-		this.currentCallback = this.callback;
 	}
 	this.init(start, startParam, options);
 	
@@ -224,6 +282,23 @@ Dutie.CallTask = function(start, startParam, options, cb) {
 				return this.checkDepend();
 			}
 		}
+	}
+	
+	this.addTo = function(manager) {
+		manager.add(this);
+		return this;
+	}
+	
+	this.addAllTo = function(manager) {
+		this.addTo(manager);
+		
+		for (var i = 0; i < this.depend.length; i++) {
+			if (!this.depend[i].added) this.depend[i].addAllTo(manager);
+		}
+		for (var i = 0; i < this.dependers.length; i++) {
+			if (!this.dependers[i].added) this.dependers[i].addAllTo(manager);
+		}
+		return this;
 	}
 }
 
