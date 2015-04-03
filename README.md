@@ -107,7 +107,7 @@ If you want to be able to execute the task, return true.
 Array of paramaters passed to Task.check.
 
 ### Task.start
-Function that gets called immediately when the task begins.
+Function that gets called immediately when the task begins. Return true to finish immediately (useful for "prerequisites")
 
 ### Task.startParams
 Array of paramaters passed to Task.start.
@@ -163,10 +163,12 @@ Alright, you've made it this far. What are the options?
 var CallTask = Dutie.CallTask
 ```
 
-CallTasks are built for callbacks rather than updates. This means your start function is now the method you wish to pass the callback with.
+CallTasks are built for callbacks rather than updates. This means your call function is now the method you wish to pass the callback with.
 The callback is automatically put at the end of the paramaters or at Task.location as set when created in the options.
 
-### new CallTask(start, startParams, options)
+Your "start" method is called before the call function is request. Use this in to make sure you want to send the request!
+
+### new CallTask(call, callParams, options)
 Very similar to new Task() except you are passing start and startParams now.
 Since the default Task.location is the end of startParam, you'll most likely have on less paramater on the end.
 
@@ -181,7 +183,7 @@ Manager.add(new CallTask(add, [1, 3], { complete: console.log })); // Task's cal
 ```
 
 ### Options
-CallTask includes all of the original options in Task except start and startParams since those are added as defaults now.
+CallTask includes all of the original options in Task plus:
  - location: Location of callback (will replace startParams position). 
  - update: Update function as in Task. You probably won't need this since that would be two ways to end the Task.
  - updateParams: Array of paramaters passed to update
@@ -189,7 +191,7 @@ CallTask includes all of the original options in Task except start and startPara
 
 
 # Example Task
-There is an example.js provided in addition to the following.
+There is an example task.js provided in addition to the following:
 
 Let's say you have a Minecraft bot that needs to mine ore and then go home but then runs into a zombie!
 ```js
@@ -235,8 +237,8 @@ Manager.checkAll(); // This is automatically called at the end of a task, at a c
 // Or it needs the highest priority in the list at the end of a task.
 ```
 
-# Example CallTask
-Go to the file callback_example.js for a simple usage of CallTask. CallTask can use almost all of the above example.
+# Example CallTask and RunTask
+See the examples folder for some basic uses of these. Both can use most of the functionality as the task example.
 
 # Example Shortcuts
 ```js
