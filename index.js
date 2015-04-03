@@ -78,11 +78,11 @@ function Dutie() {
 	
 	this.finish = function() {
 		if (this.currentTask && !this.currentTask.completed) {
+			this.currentTask.completed = true;
 			var param = [false].concat(this.currentTask.finishParams);
 			if (this.currentTask.finish) this.currentTask.finish.apply(this, param);
 			if (this.currentTask.complete) this.currentTask.complete.apply(this, this.currentTask.completeParams);
 			if (!this.currentTask) return;
-			this.currentTask.completed = true;
 		}
 		this.nextTask();
 	}
