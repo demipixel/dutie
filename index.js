@@ -29,6 +29,7 @@ function Dutie() {
 	
 	this.start = function() {
 		if (!this.currentTask && this.tasks.length == 0) return;
+		this.currentTask.parent = this;
 		if (this.currentTask) {
 			if (this.currentTask.start) {
 				var val = this.currentTask.start.apply(this, this.currentTask.startParams);
@@ -253,14 +254,19 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 	this.actPriority = 0;
 	
 	this.start = function(ar) {
+		
 		self.parent.activeCallback = self.callback;
 		
 		var params = self.callParams;
 		if (self.location != -1) params[self.location] = self.callback;
 		else params = params.concat(self.callback);
 		
-		if (self.startFunc) self.startFunc.apply(self.startFunc, self.startParams);
+		var val = false;
+		if (self.startFunc) val = self.startFunc.apply(self.startFunc, self.startParams);
+		if (val) return true;
+		
 		self.callFunc.apply(self.callFunc, params);
+		return false;
 	}
 	
 	this.finish = function(cancel) {
