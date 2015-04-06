@@ -29,11 +29,12 @@ function Dutie() {
 	
 	this.start = function() {
 		if (!this.currentTask && this.tasks.length == 0) return;
-		this.currentTask.parent = this;
 		if (this.currentTask) {
 			if (this.currentTask.start) {
 				var val = this.currentTask.start.apply(this, this.currentTask.startParams);
 				if (val) this.finish();
+				this.updateParent();
+				if (this.currentTask && this.currentTask.managerUpdate) this.currentTask.managerUpdate();
 				return val;
 			}
 		} else this.checkAll();
@@ -78,6 +79,7 @@ function Dutie() {
 	}
 	
 	this.finish = function() {
+		console.log('disTasks '+this.tasks);
 		if (this.currentTask && !this.currentTask.completed) {
 			this.currentTask.completed = true;
 			var param = [false].concat(this.currentTask.finishParams);
@@ -127,7 +129,9 @@ function Dutie() {
 	}
 	
 	this.updateParent = function() {
-		if (this.parent) this.parent.managerUpdate();
+		if (this.parent) {
+			this.parent.managerUpdate();
+		}
 	}
 	
 	this.pause = function() {
@@ -156,13 +160,13 @@ Dutie.Task = function(update, updateParam, options, cb) {
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
 		tsk.dependers.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.dependBy = function(tsk) {
 		this.dependers.push(tsk);
 		tsk.depend.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.priority = 0;
@@ -232,6 +236,7 @@ Dutie.Task = function(update, updateParam, options, cb) {
 
 Dutie.CallTask = function(call, callParam, options, cb) {
 	this.depend = Array();
+	this.dependers = Array();
 	this.completed = false;
 	this.cb = cb || false;
 	this.parent = null;
@@ -241,13 +246,14 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 	
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
-		return this;
+		tsk.dependers.push(this);
+		return tsk;
 	}
 	
 	this.dependBy = function(tsk) {
 		this.dependers.push(tsk);
 		tsk.depend.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.priority = 0;
@@ -255,22 +261,22 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 	
 	this.start = function(ar) {
 		
-		self.parent.activeCallback = self.callback;
+		this.activeCallback = self.callback;
 		
 		var params = self.callParams;
 		if (self.location != -1) params[self.location] = self.callback;
 		else params = params.concat(self.callback);
 		
 		var val = false;
-		if (self.startFunc) val = self.startFunc.apply(self.startFunc, self.startParams);
+		if (self.startFunc) val = self.startFunc.apply(this, self.startParams);
 		if (val) return true;
 		
-		self.callFunc.apply(self.callFunc, params);
+		self.callFunc.apply(this, params);
 		return false;
 	}
 	
 	this.finish = function(cancel) {
-		if (self.finishFunc) self.finishFunc.apply(self.finishFunc, [cancel].concat(self.finishParams));
+		if (self.finishFunc) self.finishFunc.apply(this, [cancel].concat(self.finishParams));
 		self.finishParams = Array();
 		self.cancelParams = Array();
 		self.competeParams = Array();
@@ -319,7 +325,7 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 		this.complete = opt.complete || null;
 		this.completeParams = opt.completeParams || Array();
 		
-		this.location = opt.location || -1;
+		this.location = (opt.location || opt.location === 0) ? opt.location : -1;
 		
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
@@ -372,13 +378,13 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
 		tsk.dependers.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.dependBy = function(tsk) {
 		this.dependers.push(tsk);
 		tsk.depend.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.priority = 0;
@@ -386,16 +392,21 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	
 	this.start = function() {
 		self.manager.resume();
-		return self.startFunc.apply(self, [self.manager].concat(Array.prototype.slice.call(arguments)));
+		if (self.showManager) return self.startFunc.apply(this, [self.manager].concat(Array.prototype.slice.call(arguments)));
+		else return self.startFunc.apply(this, Array.prototype.slice.call(arguments));
 	}
 	
 	this.finish = function(cancel) {
 		if (cancel) self.manager.pause();
-		if (self.finishFunc) self.finishFunc.apply(self, Array.prototype.slice.call(arguments));
+		if (self.finishFunc) self.finishFunc.apply(this, Array.prototype.slice.call(arguments));
 	}
 	
 	this.managerUpdate = function() {
-		if (this.manager.tasks.length == 0 && !this.manager.currentTask) this.parent.finish();
+		if (this.manager.tasks.length == 0 && !this.manager.currentTask) {
+			console.log(this.parent.currentTask);
+			console.log('= = = = = = = = = =');
+			this.parent.finish();
+		}
 	}
 	
 	this.startFunc;
@@ -410,6 +421,8 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	this.cancelParams;
 	this.complete;
 	this.completeParams;
+	
+	this.showManager = true;
 	
 	this.init = function(st, stParam, opt) {
 		if (!st) throw Error('You need a start function to create a RunTask');
@@ -428,6 +441,7 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 		this.cancelParams = opt.cancelParams || Array();
 		this.complete = opt.complete || null;
 		this.completeParams = opt.completeParams || Array();
+		this.showManager = (opt.manager || opt.manager === false) ? opt.manager : true;
 		
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
@@ -458,6 +472,93 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 			if (!this.dependers[i].added) this.dependers[i].addAllTo(manager);
 		}
 	}
+}
+
+Dutie.prototype.toString = function() {
+	var str = '[ Dutie Manager';
+	
+	str += 'Current Task:' + this.currentTask;
+	str += '\nTasks: \n' + this.tasks;
+	str += '\n\nHas parent: ' + (this.parent ? 'true' : 'false')
+	
+	str += '\n]';
+	return str;
+	
+}
+
+Dutie.Task.prototype.toString = function() {
+	var str = '{ Dutie Task\n';
+	
+	if (this.priority || this.actPriority) str += '\n\tPriority: ' + this.priority + '\n\n\tActive Priority: ' + this.actPriority;
+	
+	var variables = [this.update, this.check, this.start, this.cancel, this.complete, this.finish];
+	var params = [this.updateParams, this.checkParams, this.startParams, this.cancelParams, this.completeParams, this.finishParams];
+	var names = ['Update', 'Check', 'Start', 'Cancel', 'Complete', 'Finish'];
+	
+	for (var p = 0; p < params.length; p++) {
+		if (params[p].length == 0) params[p] = 'None';
+	}
+	
+	for (var i = 0; i < variables.length; i++) {
+		if (typeof variables[i] == 'function') {
+			str += '\n\t' + names[i] + ': ' + variables[i];
+			str += '\n\t' + names[i] + ' Params: ' + params[i];
+		} else if (variables[i]) {
+			str += '\n\t' + names[i] + ': ' + variables[i];
+		}
+	}
+	str += '\n}'
+	return str;
+}
+
+Dutie.CallTask.prototype.toString = function() {
+	var str = '\n{ Dutie Task\n';
+	
+	if (this.priority || this.actPriority) str += '\nPriority: ' + this.priority + '\n\nActive Priority: ' + this.actPriority;
+	
+	var variables = [this.callFunc, this.update, this.check, this.start, this.cancel, this.complete, this.finishFunc, this.location];
+	var params = [this.callParams, this.updateParams, this.checkParams, this.startParams, this.cancelParams, this.completeParams, this.finishParams];
+	var names = ['Call', 'Update', 'Check', 'Start', 'Cancel', 'Complete', 'Finish', 'Location'];
+	
+	for (var p = 0; p < params.length; p++) {
+		if (params[p].length == 0) params[p] = 'None';
+	}
+	
+	for (var i = 0; i < variables.length; i++) {
+		if (typeof variables[i] == 'function') {
+			str += '\n\t' + names[i] + ': ' + variables[i];
+			str += '\n\t' + names[i] + ' Params: ' + params[i];
+		} else if (variables[i]) {
+			str += '\n\t' + names[i] + ': ' + variables[i];
+		}
+	}
+	str += '\n}'
+	return str;
+}
+
+Dutie.RunTask.prototype.toString = function() {
+	var str = '{ Dutie Task\n';
+	
+	if (this.priority || this.actPriority) str += '\nPriority: ' + this.priority + '\n\nActive Priority: ' + this.actPriority;
+	
+	var variables = [this.update, this.check, this.startFunc, this.cancel, this.complete, this.finishFunc, this.showManager];
+	var params = [this.updateParams, this.checkParams, this.startParams, this.cancelParams, this.completeParams, this.finishParams];
+	var names = ['Update', 'Check', 'Start', 'Cancel', 'Complete', 'Finish', 'Show Manager'];
+	
+	for (var p = 0; p < params.length; p++) {
+		if (params[p].length == 0) params[p] = 'None';
+	}
+	
+	for (var i = 0; i < variables.length; i++) {
+		if (typeof variables[i] == 'function') {
+			str += '\n\t' + names[i] + ': ' + variables[i];
+			str += '\n\t' + names[i] + ' Params: ' + params[i];
+		} else if (variables[i]) {
+			str += '\n\t' + names[i] + ': ' + variables[i];
+		}
+	}
+	str += '\n}}}}}';
+	return str;
 }
 
 
