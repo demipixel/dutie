@@ -79,7 +79,6 @@ function Dutie() {
 	}
 	
 	this.finish = function() {
-		console.log('disTasks '+this.tasks);
 		if (this.currentTask && !this.currentTask.completed) {
 			this.currentTask.completed = true;
 			var param = [false].concat(this.currentTask.finishParams);
@@ -397,14 +396,12 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	}
 	
 	this.finish = function(cancel) {
-		if (cancel) self.manager.pause();
+		self.manager.pause();
 		if (self.finishFunc) self.finishFunc.apply(this, Array.prototype.slice.call(arguments));
 	}
 	
 	this.managerUpdate = function() {
-		if (this.manager.tasks.length == 0 && !this.manager.currentTask) {
-			console.log(this.parent.currentTask);
-			console.log('= = = = = = = = = =');
+		if (this.manager.tasks.length == 0 && !this.manager.currentTask && this.parent.currentTask == this) {
 			this.parent.finish();
 		}
 	}
@@ -473,7 +470,7 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 		}
 	}
 }
-
+/*
 Dutie.prototype.toString = function() {
 	var str = '[ Dutie Manager';
 	
@@ -517,7 +514,7 @@ Dutie.CallTask.prototype.toString = function() {
 	if (this.priority || this.actPriority) str += '\nPriority: ' + this.priority + '\n\nActive Priority: ' + this.actPriority;
 	
 	var variables = [this.callFunc, this.update, this.check, this.start, this.cancel, this.complete, this.finishFunc, this.location];
-	var params = [this.callParams, this.updateParams, this.checkParams, this.startParams, this.cancelParams, this.completeParams, this.finishParams];
+	var params = [this.callParams, this.updateParams, this.checkParams, this.startParams, this.cancelParams, this.completeParams, []];
 	var names = ['Call', 'Update', 'Check', 'Start', 'Cancel', 'Complete', 'Finish', 'Location'];
 	
 	for (var p = 0; p < params.length; p++) {
@@ -560,6 +557,6 @@ Dutie.RunTask.prototype.toString = function() {
 	str += '\n}}}}}';
 	return str;
 }
-
+*/
 
 module.exports = Dutie;
