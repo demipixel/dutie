@@ -470,6 +470,7 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 		}
 	}
 }
+
 /*
 Dutie.prototype.toString = function() {
 	var str = '[ Dutie Manager';
