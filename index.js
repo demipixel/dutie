@@ -29,11 +29,12 @@ function Dutie() {
 	
 	this.start = function() {
 		if (!this.currentTask && this.tasks.length == 0) return;
-		this.currentTask.parent = this;
 		if (this.currentTask) {
 			if (this.currentTask.start) {
 				var val = this.currentTask.start.apply(this, this.currentTask.startParams);
 				if (val) this.finish();
+				this.updateParent();
+				if (this.currentTask && this.currentTask.managerUpdate) this.currentTask.managerUpdate();
 				return val;
 			}
 		} else this.checkAll();
@@ -127,7 +128,9 @@ function Dutie() {
 	}
 	
 	this.updateParent = function() {
-		if (this.parent) this.parent.managerUpdate();
+		if (this.parent) {
+			this.parent.managerUpdate();
+		}
 	}
 	
 	this.pause = function() {
@@ -156,13 +159,13 @@ Dutie.Task = function(update, updateParam, options, cb) {
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
 		tsk.dependers.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.dependBy = function(tsk) {
 		this.dependers.push(tsk);
 		tsk.depend.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.priority = 0;
@@ -232,6 +235,7 @@ Dutie.Task = function(update, updateParam, options, cb) {
 
 Dutie.CallTask = function(call, callParam, options, cb) {
 	this.depend = Array();
+	this.dependers = Array();
 	this.completed = false;
 	this.cb = cb || false;
 	this.parent = null;
@@ -241,13 +245,14 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 	
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
-		return this;
+		tsk.dependers.push(this);
+		return tsk;
 	}
 	
 	this.dependBy = function(tsk) {
 		this.dependers.push(tsk);
 		tsk.depend.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.priority = 0;
@@ -255,22 +260,22 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 	
 	this.start = function(ar) {
 		
-		self.parent.activeCallback = self.callback;
+		this.activeCallback = self.callback;
 		
 		var params = self.callParams;
 		if (self.location != -1) params[self.location] = self.callback;
 		else params = params.concat(self.callback);
 		
 		var val = false;
-		if (self.startFunc) val = self.startFunc.apply(self.startFunc, self.startParams);
+		if (self.startFunc) val = self.startFunc.apply(this, self.startParams);
 		if (val) return true;
 		
-		self.callFunc.apply(self.callFunc, params);
+		self.callFunc.apply(this, params);
 		return false;
 	}
 	
 	this.finish = function(cancel) {
-		if (self.finishFunc) self.finishFunc.apply(self.finishFunc, [cancel].concat(self.finishParams));
+		if (self.finishFunc) self.finishFunc.apply(this, [cancel].concat(self.finishParams));
 		self.finishParams = Array();
 		self.cancelParams = Array();
 		self.competeParams = Array();
@@ -319,7 +324,7 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 		this.complete = opt.complete || null;
 		this.completeParams = opt.completeParams || Array();
 		
-		this.location = opt.location || -1;
+		this.location = (opt.location || opt.location === 0) ? opt.location : -1;
 		
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
@@ -372,13 +377,13 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	this.dependOn = function(tsk) {
 		this.depend.push(tsk);
 		tsk.dependers.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.dependBy = function(tsk) {
 		this.dependers.push(tsk);
 		tsk.depend.push(this);
-		return this;
+		return tsk;
 	}
 	
 	this.priority = 0;
@@ -386,12 +391,13 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	
 	this.start = function() {
 		self.manager.resume();
-		return self.startFunc.apply(self, [self.manager].concat(Array.prototype.slice.call(arguments)));
+		if (self.showManager) return self.startFunc.apply(this, [self.manager].concat(Array.prototype.slice.call(arguments)));
+		else return self.startFunc.apply(this, Array.prototype.slice.call(arguments));
 	}
 	
 	this.finish = function(cancel) {
 		if (cancel) self.manager.pause();
-		if (self.finishFunc) self.finishFunc.apply(self, Array.prototype.slice.call(arguments));
+		if (self.finishFunc) self.finishFunc.apply(this, Array.prototype.slice.call(arguments));
 	}
 	
 	this.managerUpdate = function() {
@@ -411,6 +417,8 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	this.complete;
 	this.completeParams;
 	
+	this.showManager = true;
+	
 	this.init = function(st, stParam, opt) {
 		if (!st) throw Error('You need a start function to create a RunTask');
 		opt = opt || {};
@@ -428,6 +436,7 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 		this.cancelParams = opt.cancelParams || Array();
 		this.complete = opt.complete || null;
 		this.completeParams = opt.completeParams || Array();
+		this.showManager = (opt.manager || opt.manager === false) ? opt.manager : true;
 		
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
