@@ -282,9 +282,9 @@ Dutie.CallTask = function(call, callParam, options) {
 	this.callback = function() {
 		if (self.callback == self.parent.activeCallback) {
 			var ar = Array.prototype.slice.call(arguments);
-			if (!this.hasFinishParams) this.finishParams = ar;
-			if (!this.hasCompleteParams) this.completeParams = ar;
-			if (!this.hasCancelParams) this.cancelParams = ar;
+			if (!self.hasFinishParams) self.finishParams = ar;
+			if (!self.hasCompleteParams) self.completeParams = ar;
+			if (!self.hasCancelParams) self.cancelParams = ar;
 			self.parent.finish();
 		}
 	}
@@ -330,9 +330,11 @@ Dutie.CallTask = function(call, callParam, options) {
 		this.complete = opt.complete || null;
 		this.completeParams = opt.completeParams || Array();
 		
-		if (this.finishParams.length) this.hasFinishParams;
-		if (this.completeParams.length) this.hasCompleteParams;
-		if (this.cancelParams.length) this.hasCancelParams;
+		if (this.finishParams.length) this.hasFinishParams = true;
+		if (this.completeParams.length) this.hasCompleteParams = true;
+		if (this.cancelParams.length) this.hasCancelParams = true;
+		
+		console.log('has',this.hasCompleteParams);
 		
 		this.location = (opt.location || opt.location === 0) ? opt.location : -1;
 		
