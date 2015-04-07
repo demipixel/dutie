@@ -1,6 +1,6 @@
 {
   "name": "dutie",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Create scheduling task managers to perform tasks with prerequisites and priorities",
   "main": "index.js",
   "scripts": {},
