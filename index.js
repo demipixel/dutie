@@ -28,15 +28,13 @@ function Dutie() {
 	}
 	
 	this.start = function() {
-		if (!this.currentTask && this.tasks.length == 0) return;
-		if (this.currentTask) {
-			if (this.currentTask.start) {
-				var val = this.currentTask.start.apply(this, this.currentTask.startParams);
-				if (val) this.finish();
-				this.updateParent();
-				if (this.currentTask && this.currentTask.managerUpdate) this.currentTask.managerUpdate();
-				return val;
-			}
+		if (!this.currentTask && this.tasks.length == 0) return false;
+		if (this.currentTask && this.currentTask.start) {
+			var val = this.currentTask.start.apply(this, this.currentTask.startParams);
+			if (val) this.finish();
+			this.updateParent();
+			if (this.currentTask && this.currentTask.managerUpdate) this.currentTask.managerUpdate();
+			return val;
 		} else this.checkAll();
 		return false;
 	}
@@ -148,11 +146,10 @@ function Dutie() {
 	}
 }
 
-Dutie.Task = function(update, updateParam, options, cb) {
+Dutie.Task = function(update, updateParam, options) {
 	this.depend = Array();
 	this.dependers = Array();
 	this.completed = false;
-	this.cb = cb || false;
 	this.parent = null;
 	this.added = false;
 	
@@ -231,13 +228,17 @@ Dutie.Task = function(update, updateParam, options, cb) {
 			if (!this.dependers[i].added) this.dependers[i].addAllTo(manager);
 		}
 	}
+	
+	this.reset = function(param) {
+		this.completed = false;
+		if (param) this.updateParams = param;
+	}
 }
 
-Dutie.CallTask = function(call, callParam, options, cb) {
+Dutie.CallTask = function(call, callParam, options) {
 	this.depend = Array();
 	this.dependers = Array();
 	this.completed = false;
-	this.cb = cb || false;
 	this.parent = null;
 	this.added = false;
 	
@@ -356,16 +357,20 @@ Dutie.CallTask = function(call, callParam, options, cb) {
 		}
 		return this;
 	}
+	
+	this.reset = function(param) {
+		this.completed = false;
+		if (param) this.callParams = param;
+	}
 }
 
 
 
 
-Dutie.RunTask = function(start, startParam, options, cb) {
+Dutie.RunTask = function(run, runParam, options) {
 	this.depend = Array();
 	this.dependers = Array();
 	this.completed = false;
-	this.cb = cb || false;
 	this.parent = null;
 	this.added = false;
 	
@@ -391,8 +396,15 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	
 	this.start = function() {
 		self.manager.resume();
-		if (self.showManager) return self.startFunc.apply(this, [self.manager].concat(Array.prototype.slice.call(arguments)));
-		else return self.startFunc.apply(this, Array.prototype.slice.call(arguments));
+		
+		var val = false;
+		if (self.startFunc) val = self.startFunc.apply(this, self.startParams);
+		if (val) return true;
+		
+		if (self.showManager) self.run.apply(this, [self.manager].concat(self.runParams));
+		else self.run.apply(this, self.runParams);
+		
+		return false;
 	}
 	
 	this.finish = function(cancel) {
@@ -405,6 +417,9 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 			this.parent.finish();
 		}
 	}
+	
+	this.run;
+	this.runParams;
 	
 	this.startFunc;
 	this.startParams;
@@ -421,13 +436,15 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 	
 	this.showManager = true;
 	
-	this.init = function(st, stParam, opt) {
-		if (!st) throw Error('You need a start function to create a RunTask');
+	this.init = function(r, rParam, opt) {
+		if (!r) throw Error('You need a start function to create a RunTask');
 		opt = opt || {};
 		
-		this.startFunc = st;
-		this.startParams = stParam || Array();
+		this.run = r;
+		this.runParams = rParam || Array();
 		
+		this.startFunc = opt.start || null;
+		this.startParams = opt.startParams || Array();
 		this.update = opt.update || null;
 		this.updateParams = opt.updateParams || Array();
 		this.finishFunc = opt.finish || null;
@@ -443,7 +460,7 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 		this.priority = opt.priority || 0;
 		this.actPriority = opt.actPriority || this.priority;
 	}
-	this.init(start, startParam, options);
+	this.init(run, runParam, options);
 	
 	this.checkDepend = function() {
 		for (var i = 0; i < this.depend.length; i++) {
@@ -468,6 +485,91 @@ Dutie.RunTask = function(start, startParam, options, cb) {
 		for (var i = 0; i < this.dependers.length; i++) {
 			if (!this.dependers[i].added) this.dependers[i].addAllTo(manager);
 		}
+	}
+	
+	this.reset = function(param) {
+		this.completed = false;
+		if (param) this.runParams = param;
+	}
+}
+
+Dutie.ExecTask = function(run, runParams, options) {
+	this.depend = Array();
+	this.dependers = Array();
+	this.completed = false;
+	this.parent = null;
+	this.added = false;
+	
+	this.run;
+	this.runParams;
+	this.check;
+	this.checkParams;
+	
+	this.priority = 0;
+	this.actPriority = 0;
+	
+	var self = this;
+	
+	this.dependOn = function(tsk) {
+		this.depend.push(tsk);
+		tsk.dependers.push(this);
+		return tsk;
+	}
+	
+	this.dependBy = function(tsk) {
+		this.dependers.push(tsk);
+		tsk.depend.push(this);
+		return tsk;
+	}
+	
+	this.init = function(r, rP, opt) {
+		if (!r) throw Error('You need a start function to create a ExecTask');
+		opt = opt || {};
+		
+		this.run = r;
+		this.runParams = rP || Array();
+		
+		this.check = opt.check || null;
+		this.checkParams = opt.checkParams || Array();
+		
+		this.priority = opt.priority || 0;
+		this.actPriority = opt.actPriority || this.priority;
+	}
+	this.init(run, runParams, options);
+	
+	this.start = function() {
+		self.run.apply(this, self.runParams);
+		self.parent.finish();
+	}
+	
+	this.checkDepend = function() {
+		for (var i = 0; i < this.depend.length; i++) {
+			if (this.depend[i].completed) {
+				this.depend.splice(i, 1);
+				return this.checkDepend();
+			}
+		}
+	}
+	
+	this.addTo = function(manager) {
+		manager.add(this);
+	}
+	
+	this.addAllTo = function(manager) {
+		this.addTo(manager);
+		
+		for (var i = 0; i < this.depend.length; i++) {
+			if (!this.depend[i].added) this.depend[i].addAllTo(manager);
+		}
+		
+		for (var i = 0; i < this.dependers.length; i++) {
+			if (!this.dependers[i].added) this.dependers[i].addAllTo(manager);
+		}
+	}
+	
+	this.reset = function(param) {
+		this.completed = false;
+		if (param) this.runParams = param;
 	}
 }
 
