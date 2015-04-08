@@ -334,8 +334,6 @@ Dutie.CallTask = function(call, callParam, options) {
 		if (this.completeParams.length) this.hasCompleteParams = true;
 		if (this.cancelParams.length) this.hasCancelParams = true;
 		
-		console.log('has',this.hasCompleteParams);
-		
 		this.location = (opt.location || opt.location === 0) ? opt.location : -1;
 		
 		this.priority = opt.priority || 0;
