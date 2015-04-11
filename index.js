@@ -60,6 +60,7 @@ function Dutie() {
 	}
 	
 	this.nextTask = function() {
+		if (this.paused) return;
 		this.currentTask = null;
 		if (this.tasks.length == 0) this.updateParent();
 		this.sortTasks();
@@ -104,6 +105,7 @@ function Dutie() {
 	}
 	
 	this.checkAll = function() {
+		if (this.paused) return;
 		this.sortTasks();
 		for (var i = 0; i < this.tasks.length; i++) {
 			var t = this.tasks[i];
@@ -417,7 +419,7 @@ Dutie.RunTask = function(run, runParam, options) {
 	}
 	
 	this.finish = function(cancel) {
-		self.manager.pause();
+		if (cancel) self.manager.pause();
 		if (self.finishFunc) self.finishFunc.apply(this, Array.prototype.slice.call(arguments));
 	}
 	
