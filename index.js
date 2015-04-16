@@ -88,13 +88,18 @@ function Dutie() {
 		this.nextTask();
 	}
 	
+	this.finishAll = function() {
+		this.tasks = Array();
+		this.finish();
+	}
+	
 	this.cancel = function() {
 		if (!this.currentTask) return;
 		
 		var param = [true].concat(this.currentTask.finishParams);
 		if (this.currentTask.finish) this.currentTask.finish.apply(this, param);
 		if (this.currentTask.cancel) this.currentTask.cancel.apply(this, this.currentTask.cancelParams);
-		this.tasks.push(this.currentTask);
+		this.tasks = [this.currentTask].concat(this.tasks);
 		this.currentTask = null;
 	}
 	
